@@ -12,7 +12,7 @@ age = int(input("Enter your age: "))
 
 degree = input("Enter your degree: ")
 
-print(f"Your age # {age}")
+print(f"Your age: {age}")
 
 print(f"Your degree is {degree}")
 
