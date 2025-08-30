@@ -1,4 +1,4 @@
-# Day 1: Input, Variables, and Data Types, this is a simple program that takes user input and displays it back.
+# Day 1: Input, Variables, and Data Types, this is a simple program that takes user info and displays it back.
 
 userName = input("Enter your name: ")
 
@@ -15,6 +15,8 @@ print(f"Your degree is {degree}")
 favoriteFood = input("Enter your favorite food: ")
 
 favoriteColor = input("Enter your favorite color: ")
+
+print(f"Hello, your name is {userName}, you're {age} years old, you study {degree}, your favorite food is {favoriteFood}, and most likely you wear {favoriteColor}.")
 
 summary = f"""
 Hello, your name is {userName}, 
