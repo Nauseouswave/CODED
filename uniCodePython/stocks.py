@@ -24,7 +24,7 @@ X2 = data['Day']
 
 Y2 = data['Volume']
 
-plt.bar(X2, Y2)
+plt.bar(X2, Y2, color='green')
 
 plt.title("Trading Volume Over 30 Days")
 
