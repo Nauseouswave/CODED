@@ -14,6 +14,7 @@ from components.ui_components import (
     render_portfolio_summary
 )
 from components.import_export_ui import render_import_export_page
+from components.goals_ui import render_goals_dashboard, render_goals_sidebar_widget
 
 # Page configuration
 st.set_page_config(
@@ -35,7 +36,7 @@ with st.sidebar:
     
     page = st.radio(
         "Select Page:",
-        ["📈 Portfolio Dashboard", "📊 Import/Export Data"],
+        ["📈 Portfolio Dashboard", "🎯 Investment Goals", "📊 Import/Export Data"],
         index=0
     )
     
@@ -48,12 +49,19 @@ with st.sidebar:
         total_value = sum(inv['amount'] for inv in st.session_state.investments)
         st.metric("Investments", total_investments)
         st.metric("Total Value", f"${total_value:,.0f}")
+        
+        st.divider()
+        
+        # Goals widget in sidebar
+        render_goals_sidebar_widget()
     else:
         st.info("Add investments to see stats")
 
 # Main content area
 if page == "📊 Import/Export Data":
     render_import_export_page()
+elif page == "🎯 Investment Goals":
+    render_goals_dashboard()
 else:
     # Original portfolio dashboard
     # Display logo at the top
