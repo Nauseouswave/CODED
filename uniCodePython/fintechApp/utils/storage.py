@@ -25,3 +25,17 @@ def load_from_storage():
     except:
         pass
     return []
+
+
+def load_investments():
+    """Load investments from session state or storage"""
+    # First try session state
+    if 'investments' in st.session_state:
+        return st.session_state.investments
+    
+    # Fall back to storage
+    investments = load_from_storage()
+    if investments:
+        st.session_state.investments = investments
+    
+    return investments

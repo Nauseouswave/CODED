@@ -3,7 +3,17 @@ Main Portfolio App
 A streamlined Streamlit application for investment portfolio tracking
 """
 
+import os
 import streamlit as st
+
+# Load environment variables from .env file FIRST
+try:
+    from dotenv import load_dotenv
+    load_dotenv(override=True)  # Override existing environment variables
+    print(f"DEBUG MAIN: Loaded API key starts with: {os.getenv('OPENAI_API_KEY', 'Not found')[:15]}...")
+except ImportError:
+    print("DEBUG MAIN: python-dotenv not available")
+
 from utils.storage import load_from_storage, save_to_storage
 from utils.analytics import calculate_portfolio_metrics, create_portfolio_dataframe, create_portfolio_pie_chart, create_portfolio_donut_chart
 from components.ui_components import (
@@ -15,6 +25,7 @@ from components.ui_components import (
 )
 from components.import_export_ui import render_import_export_page
 from components.goals_ui import render_goals_dashboard, render_goals_sidebar_widget
+from components.financial_advisor_ui import render_financial_advisor, render_advisor_sidebar_widget
 
 # Page configuration
 st.set_page_config(
@@ -36,7 +47,7 @@ with st.sidebar:
     
     page = st.radio(
         "Select Page:",
-        ["📈 Portfolio Dashboard", "🎯 Investment Goals", "📊 Import/Export Data"],
+        ["📈 Portfolio Dashboard", "🎯 Investment Goals", "🤖 AI Financial Advisor", "📊 Import/Export Data"],
         index=0
     )
     
@@ -54,6 +65,9 @@ with st.sidebar:
         
         # Goals widget in sidebar
         render_goals_sidebar_widget()
+        
+        # AI Advisor widget in sidebar
+        render_advisor_sidebar_widget()
     else:
         st.info("Add investments to see stats")
 
@@ -62,6 +76,8 @@ if page == "📊 Import/Export Data":
     render_import_export_page()
 elif page == "🎯 Investment Goals":
     render_goals_dashboard()
+elif page == "🤖 AI Financial Advisor":
+    render_financial_advisor()
 else:
     # Original portfolio dashboard
     # Display logo at the top
