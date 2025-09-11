@@ -17,21 +17,18 @@ response = requests.get(url)
 if response.status_code == 200:
     data = response.json()
     
-    # Current price display (bonus requirement)
     current_price = data["prices"][-1][1]
     st.metric(
         label=f"Current {crypto.upper()} Price",
         value=f"{current_price:,.2f} {currency.upper()}"
     )
     
-    # Price chart
     prices_df = pd.DataFrame(data["prices"], columns=["Time", "Price"])
     prices_df["Time"] = pd.to_datetime(prices_df["Time"], unit="ms")
     
     st.subheader(f"Price Last {days} days")
     st.line_chart(data=prices_df.set_index("Time")["Price"])
     
-    # Volume chart
     volumes_df = pd.DataFrame(data["total_volumes"], columns=["Time", "Volume"])
     volumes_df["Time"] = pd.to_datetime(volumes_df["Time"], unit="ms")
     
