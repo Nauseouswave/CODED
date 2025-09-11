@@ -77,7 +77,7 @@ def create_portfolio_dataframe(investments):
 
 
 def create_portfolio_pie_chart(investments):
-    """Create a pie chart for portfolio distribution"""
+    """Create a modern, styled pie chart for portfolio distribution"""
     # Group by investment name and sum amounts (in case of duplicate names)
     name_totals = {}
     for inv in investments:
@@ -92,9 +92,164 @@ def create_portfolio_pie_chart(investments):
         columns=['Investment Name', 'Amount']
     )
     
-    # Create pie chart using Matplotlib
-    fig, ax = plt.subplots(figsize=(8, 6))
-    ax.pie(chart_data['Amount'], labels=chart_data['Investment Name'], autopct='%1.1f%%')
-    ax.set_title('Portfolio Distribution by Individual Investments')
+    # Modern color palette - gradient from dark to light
+    colors = [
+        '#1f77b4',  # Blue
+        '#ff7f0e',  # Orange  
+        '#2ca02c',  # Green
+        '#d62728',  # Red
+        '#9467bd',  # Purple
+        '#8c564b',  # Brown
+        '#e377c2',  # Pink
+        '#7f7f7f',  # Gray
+        '#bcbd22',  # Olive
+        '#17becf',  # Cyan
+        '#aec7e8',  # Light Blue
+        '#ffbb78',  # Light Orange
+        '#98df8a',  # Light Green
+        '#ff9896',  # Light Red
+        '#c5b0d5',  # Light Purple
+    ]
+    
+    # Create figure with modern styling
+    fig, ax = plt.subplots(figsize=(12, 8))
+    fig.patch.set_facecolor('#f8f9fa')  # Light background
+    
+    # Create the pie chart with enhanced styling
+    wedges, texts, autotexts = ax.pie(
+        chart_data['Amount'], 
+        labels=None,  # We'll create custom labels
+        autopct='%1.1f%%',
+        colors=colors[:len(chart_data)],
+        startangle=90,
+        explode=[0.05] * len(chart_data),  # Slightly separate all slices
+        shadow=True,
+        textprops={'fontsize': 11, 'fontweight': 'bold', 'color': 'white'}
+    )
+    
+    # Customize the percentage text
+    for autotext in autotexts:
+        autotext.set_color('white')
+        autotext.set_fontsize(10)
+        autotext.set_fontweight('bold')
+    
+    # Create custom legend with investment names and amounts
+    legend_labels = []
+    for i, (name, amount) in enumerate(zip(chart_data['Investment Name'], chart_data['Amount'])):
+        # Truncate long names for better display
+        display_name = name if len(name) <= 15 else name[:12] + "..."
+        legend_labels.append(f'{display_name}: ${amount:,.0f}')
+    
+    # Position legend to the right of the chart
+    legend = ax.legend(
+        wedges, 
+        legend_labels,
+        title="Investments",
+        loc="center left",
+        bbox_to_anchor=(1, 0, 0.5, 1),
+        fontsize=10,
+        title_fontsize=12,
+        frameon=True,
+        fancybox=True,
+        shadow=True,
+        framealpha=0.9
+    )
+    
+    # Set title weight separately for compatibility
+    legend.get_title().set_fontweight('bold')
+    
+    # Modern title styling
+    ax.set_title(
+        '💼 Portfolio Distribution', 
+        fontsize=18, 
+        fontweight='bold', 
+        pad=20,
+        color='#2c3e50'
+    )
+    
+    # Add a subtle subtitle
+    fig.suptitle(
+        'Investment Allocation by Value',
+        fontsize=12,
+        y=0.02,
+        color='#7f8c8d',
+        alpha=0.8
+    )
+    
+    # Equal aspect ratio ensures that pie is drawn as a circle
+    ax.axis('equal')
+    
+    # Adjust layout to prevent legend cutoff
+    plt.tight_layout()
+    
+    return fig
+
+
+def create_portfolio_donut_chart(investments):
+    """Create a modern donut chart for portfolio distribution"""
+    # Group by investment type for a different view
+    type_totals = {}
+    for inv in investments:
+        inv_type = inv['type']
+        if inv_type in type_totals:
+            type_totals[inv_type] += inv['amount']
+        else:
+            type_totals[inv_type] = inv['amount']
+    
+    if not type_totals:
+        return None
+        
+    # Create chart data
+    chart_data = pd.DataFrame(
+        list(type_totals.items()),
+        columns=['Investment Type', 'Amount']
+    )
+    
+    # Color scheme for investment types
+    type_colors = {
+        'Stocks': '#3498db',        # Blue
+        'Cryptocurrency': '#f39c12', # Orange
+        'Bonds': '#27ae60',         # Green
+        'Real Estate': '#e74c3c',   # Red
+        'Other': '#9b59b6'          # Purple
+    }
+    
+    colors = [type_colors.get(inv_type, '#95a5a6') for inv_type in chart_data['Investment Type']]
+    
+    # Create figure
+    fig, ax = plt.subplots(figsize=(10, 8))
+    fig.patch.set_facecolor('#f8f9fa')
+    
+    # Create donut chart
+    wedges, texts, autotexts = ax.pie(
+        chart_data['Amount'],
+        labels=chart_data['Investment Type'],
+        autopct='%1.1f%%',
+        colors=colors,
+        startangle=90,
+        pctdistance=0.85,
+        wedgeprops=dict(width=0.5, edgecolor='white', linewidth=2),
+        textprops={'fontsize': 12, 'fontweight': 'bold'}
+    )
+    
+    # Customize percentage text
+    for autotext in autotexts:
+        autotext.set_color('white')
+        autotext.set_fontsize(11)
+        autotext.set_fontweight('bold')
+    
+    # Add center circle for donut effect
+    centre_circle = plt.Circle((0, 0), 0.70, fc='white', linewidth=2, edgecolor='#bdc3c7')
+    fig.gca().add_artist(centre_circle)
+    
+    # Add center text
+    ax.text(0, 0.1, 'Portfolio', horizontalalignment='center', fontsize=16, fontweight='bold', color='#2c3e50')
+    ax.text(0, -0.1, 'by Type', horizontalalignment='center', fontsize=12, color='#7f8c8d')
+    
+    # Title
+    ax.set_title('📊 Investment Types Distribution', fontsize=18, fontweight='bold', pad=20, color='#2c3e50')
+    
+    ax.axis('equal')
+    plt.tight_layout()
     
     return fig
