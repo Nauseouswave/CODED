@@ -33,6 +33,5 @@ plt.ylabel("Volume")
 
 plt.show()
 
-# Calculate total volue for every day and print it
 total_volume = data['Volume'].sum()
 print(f"Total trading volume over 30 days: {total_volume}")
