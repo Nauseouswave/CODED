@@ -347,14 +347,20 @@ class FinancialAdvisorAgent:
         if not self.enabled:
             return "❌ AI Financial Advisor is not available. Please configure OpenAI API key."
         
+        # Transform portfolio data to match expected format
+        transformed_portfolio = self._transform_portfolio_data(portfolio_data) if portfolio_data else None
+        
         try:
             # Enhanced system prompt for financial advice
             system_prompt = f"""
             You are an expert AI Financial Advisor. You provide personalized financial advice based on:
             
-            1. User's current portfolio: {len(portfolio_data) if portfolio_data else 0} holdings
+            1. User's current portfolio: {len(transformed_portfolio) if transformed_portfolio else 0} holdings
             2. User's financial goals: {len(goals_data) if goals_data else 0} goals
             3. Current market conditions and trends
+            
+            User Portfolio Summary:
+            {self._format_portfolio_summary(portfolio_data) if portfolio_data else "No portfolio data available"}
             
             Guidelines:
             - Always provide actionable, specific advice
@@ -392,8 +398,8 @@ class FinancialAdvisorAgent:
                     function_name = tool_call.function.name
                     function_args = json.loads(tool_call.function.arguments)
                     
-                    if function_name == "analyze_portfolio" and portfolio_data:
-                        result = self.analyze_portfolio(portfolio_data)
+                    if function_name == "analyze_portfolio" and transformed_portfolio:
+                        result = self.analyze_portfolio(transformed_portfolio)
                         function_responses.append(f"Portfolio Analysis: {json.dumps(result, indent=2)}")
                     
                     elif function_name == "analyze_investment":
@@ -401,12 +407,12 @@ class FinancialAdvisorAgent:
                         function_responses.append(f"Investment Analysis: {json.dumps(result, indent=2)}")
                     
                     elif function_name == "check_goal_progress" and goals_data:
-                        portfolio_value = sum(holding.get('current_value', 0) for holding in portfolio_data) if portfolio_data else 0
+                        portfolio_value = sum(holding.get('amount', 0) for holding in portfolio_data) if portfolio_data else 0
                         result = self.check_goal_progress(goals_data, portfolio_value)
                         function_responses.append(f"Goal Progress: {json.dumps(result, indent=2)}")
                     
                     elif function_name == "get_market_insights":
-                        symbols = [holding.get('symbol') for holding in portfolio_data] if portfolio_data else function_args.get("symbols", [])
+                        symbols = self._extract_symbols_from_portfolio(portfolio_data) if portfolio_data else function_args.get("symbols", [])
                         result = self.get_market_insights(function_args["sector"], symbols)
                         function_responses.append(f"Market Insights: {json.dumps(result, indent=2)}")
                 
@@ -431,6 +437,107 @@ class FinancialAdvisorAgent:
         except Exception as e:
             return f"❌ Error processing your request: {str(e)}"
     
+    def _transform_portfolio_data(self, portfolio_data: List[Dict]) -> List[Dict]:
+        """Transform app portfolio data to AI agent expected format"""
+        if not portfolio_data:
+            return []
+        
+        transformed = []
+        for holding in portfolio_data:
+            # Try to extract symbol from name (this is a best-effort approach)
+            symbol = self._extract_symbol_from_name(holding.get('name', ''))
+            
+            transformed_holding = {
+                "symbol": symbol,
+                "shares": holding.get('shares', 0),
+                "entry_price": holding.get('entry_price', 0),
+                "current_value": holding.get('amount', 0),  # Use total investment amount
+                "investment_type": holding.get('type', 'unknown'),
+                "risk_level": holding.get('risk_level', 'medium'),
+                "original_name": holding.get('name', '')  # Keep original name for reference
+            }
+            transformed.append(transformed_holding)
+        
+        return transformed
+    
+    def _extract_symbol_from_name(self, name: str) -> str:
+        """Extract or guess ticker symbol from investment name"""
+        # Common mappings for popular investments
+        symbol_mappings = {
+            'apple': 'AAPL',
+            'microsoft': 'MSFT', 
+            'google': 'GOOGL',
+            'alphabet': 'GOOGL',
+            'amazon': 'AMZN',
+            'tesla': 'TSLA',
+            'nvidia': 'NVDA',
+            'meta': 'META',
+            'facebook': 'META',
+            'netflix': 'NFLX',
+            'adobe': 'ADBE',
+            'salesforce': 'CRM',
+            'bitcoin': 'BTC-USD',
+            'ethereum': 'ETH-USD',
+            'litecoin': 'LTC-USD',
+            'dogecoin': 'DOGE-USD',
+            'cardano': 'ADA-USD',
+            'solana': 'SOL-USD',
+            'spy': 'SPY',
+            'qqq': 'QQQ',
+            'vti': 'VTI',
+            'voo': 'VOO'
+        }
+        
+        name_lower = name.lower().strip()
+        
+        # Check if it's already a symbol (all caps, 3-5 chars)
+        if len(name) <= 5 and name.isupper():
+            return name
+        
+        # Check direct mappings
+        if name_lower in symbol_mappings:
+            return symbol_mappings[name_lower]
+        
+        # Check if any mapping key is contained in the name
+        for key, symbol in symbol_mappings.items():
+            if key in name_lower:
+                return symbol
+        
+        # If no mapping found, return the original name
+        return name.upper()[:5]  # Truncate to 5 chars max
+    
+    def _extract_symbols_from_portfolio(self, portfolio_data: List[Dict]) -> List[str]:
+        """Extract symbols from portfolio for market analysis"""
+        if not portfolio_data:
+            return []
+        
+        symbols = []
+        for holding in portfolio_data:
+            symbol = self._extract_symbol_from_name(holding.get('name', ''))
+            if symbol and symbol not in symbols:
+                symbols.append(symbol)
+        
+        return symbols[:10]  # Limit to 10 symbols
+    
+    def _format_portfolio_summary(self, portfolio_data: List[Dict]) -> str:
+        """Format portfolio data for AI context"""
+        if not portfolio_data:
+            return "No investments"
+        
+        summary = []
+        total_value = sum(holding.get('amount', 0) for holding in portfolio_data)
+        
+        for holding in portfolio_data:
+            name = holding.get('name', 'Unknown')
+            amount = holding.get('amount', 0)
+            shares = holding.get('shares', 0)
+            investment_type = holding.get('type', 'unknown')
+            percentage = (amount / total_value * 100) if total_value > 0 else 0
+            
+            summary.append(f"- {name} ({investment_type}): ${amount:,.2f} ({percentage:.1f}%) - {shares:.4f} shares")
+        
+        return f"Total Portfolio Value: ${total_value:,.2f}\n" + "\n".join(summary)
+    
     def get_quick_insights(self, portfolio_data: List[Dict], goals_data: List[Dict]) -> Dict:
         """Generate quick insights without full AI processing"""
         insights = {
@@ -440,14 +547,17 @@ class FinancialAdvisorAgent:
         }
         
         if portfolio_data:
-            total_value = sum(holding.get('current_value', 0) for holding in portfolio_data)
+            # Use 'amount' field from app's data structure instead of 'current_value'
+            total_value = sum(holding.get('amount', 0) for holding in portfolio_data)
             insights["portfolio_value"] = f"${total_value:,.2f}"
             
             if len(portfolio_data) < 5:
                 insights["recommendations"].append("🎯 Consider diversifying with more holdings")
             
-            if len(set(holding.get('symbol', '')[:1] for holding in portfolio_data)) < 3:
-                insights["recommendations"].append("🏭 Add holdings from different sectors")
+            # Check sector diversity using investment names since we don't have transformed symbols yet
+            investment_types = set(holding.get('type', 'unknown') for holding in portfolio_data)
+            if len(investment_types) < 2:
+                insights["recommendations"].append("🏭 Add different investment types (stocks, crypto, etc.)")
         
         if goals_data:
             behind_goals = [goal for goal in goals_data if goal.get('current_amount', 0) / goal.get('target_amount', 1) < 0.5]

@@ -103,24 +103,28 @@ def render_financial_advisor():
         with st.chat_message(message["role"]):
             st.write(message["content"])
     
-    # Chat input
-    if prompt := st.chat_input("Ask your financial advisor anything..."):
-        # Add user message to chat history
-        st.session_state.advisor_messages.append({"role": "user", "content": prompt})
+    # Check if last message was a user message that needs processing
+    if (st.session_state.advisor_messages and 
+        st.session_state.advisor_messages[-1]["role"] == "user"):
         
-        # Display user message
-        with st.chat_message("user"):
-            st.write(prompt)
+        last_user_message = st.session_state.advisor_messages[-1]["content"]
         
         # Generate and display AI response
         with st.chat_message("assistant"):
             with st.spinner("🤔 Analyzing your request..."):
                 # Process the query with current portfolio and goals data
-                response = advisor.process_query(prompt, investments, goals)
+                response = advisor.process_query(last_user_message, investments, goals)
                 st.write(response)
         
         # Add assistant response to chat history
         st.session_state.advisor_messages.append({"role": "assistant", "content": response})
+        st.rerun()  # Refresh to show the new message
+    
+    # Chat input
+    if prompt := st.chat_input("Ask your financial advisor anything..."):
+        # Add user message to chat history
+        st.session_state.advisor_messages.append({"role": "user", "content": prompt})
+        st.rerun()  # This will trigger the processing above
     
     st.divider()
     
@@ -132,7 +136,12 @@ def render_financial_advisor():
             st.write("**Portfolio Holdings:**")
             if investments:
                 for inv in investments:
-                    st.write(f"• {inv.get('symbol', 'Unknown')} - {inv.get('shares', 0)} shares")
+                    name = inv.get('name', 'Unknown')
+                    shares = inv.get('shares', 0)
+                    investment_type = inv.get('type', 'Unknown')
+                    amount = inv.get('amount', 0)
+                    st.write(f"• {name} ({investment_type})")
+                    st.write(f"  └ {shares:,.4f} shares - ${amount:,.2f} invested")
             else:
                 st.write("No investments added yet")
         
@@ -140,8 +149,17 @@ def render_financial_advisor():
             st.write("**Financial Goals:**")
             if goals:
                 for goal in goals:
-                    progress = (goal.get('current_amount', 0) / goal.get('target_amount', 1)) * 100
-                    st.write(f"• {goal.get('name', 'Unnamed')} - {progress:.1f}% complete")
+                    # Import the goal progress calculation function
+                    try:
+                        from ..utils.goals import calculate_goal_progress
+                    except ImportError:
+                        from utils.goals import calculate_goal_progress
+                    
+                    # Calculate actual progress using the proper function
+                    progress_data = calculate_goal_progress(goal, investments)
+                    progress_percentage = progress_data.get('progress_percentage', 0)
+                    
+                    st.write(f"• {goal.get('name', 'Unnamed')} - {progress_percentage:.1f}% complete")
             else:
                 st.write("No goals set yet")
     
@@ -195,16 +213,16 @@ def render_advisor_sidebar_widget():
         if investments or goals:
             insights = advisor.get_quick_insights(investments, goals)
             
-            # Show key metrics
-            if insights.get("portfolio_value"):
-                st.sidebar.metric("Portfolio", insights["portfolio_value"])
+            # Show AI insights instead of duplicate portfolio value
+            if insights.get("portfolio_summary"):
+                st.sidebar.metric("Holdings", insights["portfolio_summary"])
             
             # Show top recommendation
             if insights.get("recommendations"):
                 st.sidebar.info(f"💡 {insights['recommendations'][0]}")
             
             if st.sidebar.button("💬 Open AI Advisor"):
-                st.session_state.current_page = "AI Financial Advisor"
+                st.session_state.current_page = "🤖 AI Financial Advisor"
                 st.rerun()
         else:
             st.sidebar.info("Add investments & goals for AI insights")

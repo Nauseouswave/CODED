@@ -50,7 +50,13 @@ def render_investment_input():
             # For Bonds, Real Estate, etc. - just use text input
             investment_name = st.text_input("Enter Investment Name:")
         
-        entry_price = st.number_input("Enter Entry Price per Share/Unit ($):", min_value=0.0, step=0.01)
+        # Check if live price was requested and stored in session state
+        initial_entry_price = 0.0
+        if f"entry_price_{investment_type}" in st.session_state:
+            initial_entry_price = st.session_state[f"entry_price_{investment_type}"]
+            del st.session_state[f"entry_price_{investment_type}"]
+        
+        entry_price = st.number_input("Enter Entry Price per Share/Unit ($):", min_value=0.0, step=0.01, value=initial_entry_price)
         
         # Show live price preview for supported assets
         if investment_name and investment_name not in ["", "Custom Entry"] and investment_type in ["Stocks", "Cryptocurrency"]:
@@ -68,11 +74,15 @@ def render_investment_input():
         total_amount = st.number_input("Enter Total Amount Invested ($):", min_value=0.0, step=0.01)
         risk_level = st.selectbox("Select Risk Level:", ["Low", "Medium", "High"])
         
-    # Auto-fill entry price if requested
-    if f"entry_price_{investment_type}" in st.session_state:
-        entry_price = st.session_state[f"entry_price_{investment_type}"]
-        del st.session_state[f"entry_price_{investment_type}"]
-
+        # Add entry date input
+        st.write("**Investment Entry Date:**")
+        entry_date = st.date_input(
+            "When did you make this investment?",
+            value=datetime.now().date(),
+            max_value=datetime.now().date(),
+            help="Select the date when you actually purchased this investment"
+        )
+        
     # Calculate number of shares/units
     if entry_price > 0 and total_amount > 0:
         shares = total_amount / entry_price
@@ -81,10 +91,10 @@ def render_investment_input():
     else:
         shares = 0
 
-    return investment_name, investment_type, entry_price, shares, risk_level, total_amount
+    return investment_name, investment_type, entry_price, shares, risk_level, total_amount, entry_date
 
 
-def render_action_buttons(investment_name, investment_type, entry_price, shares, risk_level, total_amount):
+def render_action_buttons(investment_name, investment_type, entry_price, shares, risk_level, total_amount, entry_date):
     """Render the action buttons for adding and clearing investments"""
     col1, col2 = st.columns(2)
     
@@ -98,7 +108,7 @@ def render_action_buttons(investment_name, investment_type, entry_price, shares,
                     'shares': shares,
                     'amount': total_amount,
                     'risk_level': risk_level,
-                    'date_added': datetime.now().isoformat()
+                    'date_added': entry_date.isoformat()
                 }
                 st.session_state.investments.append(investment)
                 # Save to storage whenever we add an investment

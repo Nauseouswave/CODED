@@ -115,13 +115,39 @@ def calculate_days_remaining(target_date_str: str) -> int:
 
 def save_goals(goals: List[Dict]):
     """Save goals to session state and localStorage"""
+    import json
+    import base64
+    
     st.session_state.investment_goals = goals
-    # Could extend this to save to file or database
+    
+    # Save to persistent storage like investments do
+    goals_json = json.dumps(goals)
+    encoded_data = base64.b64encode(goals_json.encode()).decode()
+    st.query_params["goals_data"] = encoded_data
 
 
 def load_goals() -> List[Dict]:
-    """Load goals from session state"""
-    return st.session_state.get('investment_goals', [])
+    """Load goals from session state or persistent storage"""
+    import json
+    import base64
+    
+    # First try session state
+    if 'investment_goals' in st.session_state:
+        return st.session_state.investment_goals
+    
+    # Fall back to persistent storage
+    try:
+        encoded_data = st.query_params.get("goals_data", "")
+        if encoded_data:
+            decoded_data = base64.b64decode(encoded_data).decode()
+            goals = json.loads(decoded_data)
+            # Store in session state for faster access
+            st.session_state.investment_goals = goals
+            return goals
+    except:
+        pass
+    
+    return []
 
 
 def get_goal_status_color(progress_percentage: float, days_remaining: int) -> str:

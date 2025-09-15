@@ -16,6 +16,7 @@ except ImportError:
 
 from utils.storage import load_from_storage, save_to_storage
 from utils.analytics import calculate_portfolio_metrics, create_portfolio_dataframe, create_portfolio_pie_chart, create_portfolio_donut_chart
+from utils.interactive_charts import render_interactive_portfolio_charts
 from components.ui_components import (
     render_investment_input, 
     render_action_buttons, 
@@ -26,6 +27,7 @@ from components.ui_components import (
 from components.import_export_ui import render_import_export_page
 from components.goals_ui import render_goals_dashboard, render_goals_sidebar_widget
 from components.financial_advisor_ui import render_financial_advisor, render_advisor_sidebar_widget
+from components.performance_ui import render_performance_dashboard
 
 # Page configuration
 st.set_page_config(
@@ -45,10 +47,24 @@ with st.sidebar:
     st.image("logo.png", width=200)
     st.title("Navigation")
     
+    # Check if we need to override the page selection
+    default_index = 0
+    if 'current_page' in st.session_state:
+        if st.session_state.current_page == "🤖 AI Financial Advisor":
+            default_index = 2
+        elif st.session_state.current_page == "🎯 Investment Goals":
+            default_index = 1
+        elif st.session_state.current_page == "� Performance Tracker":
+            default_index = 3
+        elif st.session_state.current_page == "�📊 Import/Export Data":
+            default_index = 4
+        # Clear the session state after setting the index
+        del st.session_state.current_page
+    
     page = st.radio(
         "Select Page:",
-        ["📈 Portfolio Dashboard", "🎯 Investment Goals", "🤖 AI Financial Advisor", "📊 Import/Export Data"],
-        index=0
+        ["📈 Portfolio Dashboard", "🎯 Investment Goals", "🤖 AI Financial Advisor", "📈 Performance Tracker", "📊 Import/Export Data"],
+        index=default_index
     )
     
     st.divider()
@@ -78,6 +94,8 @@ elif page == "🎯 Investment Goals":
     render_goals_dashboard()
 elif page == "🤖 AI Financial Advisor":
     render_financial_advisor()
+elif page == "📈 Performance Tracker":
+    render_performance_dashboard()
 else:
     # Original portfolio dashboard
     # Display logo at the top
@@ -93,12 +111,12 @@ else:
     st.divider()
 
     # Input section
-    investment_name, investment_type, entry_price, shares, risk_level, total_amount = render_investment_input()
+    investment_name, investment_type, entry_price, shares, risk_level, total_amount, entry_date = render_investment_input()
 
     st.divider()
 
     # Buttons section
-    action_taken = render_action_buttons(investment_name, investment_type, entry_price, shares, risk_level, total_amount)
+    action_taken = render_action_buttons(investment_name, investment_type, entry_price, shares, risk_level, total_amount, entry_date)
 
     st.divider()
 
@@ -148,29 +166,13 @@ else:
         # Portfolio summary table (read-only view)
         st.subheader("Portfolio Summary Table")
         df = create_portfolio_dataframe(st.session_state.investments)
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df, width='stretch')
         
         # Enhanced Portfolio Summary with P&L
         render_portfolio_summary(portfolio_metrics)
         
-        # Portfolio visualizations
-        st.subheader("📈 Portfolio Visualizations")
-        
-        # Create two columns for side-by-side charts
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.write("**Individual Investments**")
-            fig1 = create_portfolio_pie_chart(st.session_state.investments)
-            st.pyplot(fig1)
-        
-        with col2:
-            st.write("**Investment Types**")
-            fig2 = create_portfolio_donut_chart(st.session_state.investments)
-            if fig2:
-                st.pyplot(fig2)
-            else:
-                st.info("Add investments to see type distribution")
+        # Interactive Portfolio visualizations
+        render_interactive_portfolio_charts(st.session_state.investments)
         
     else:
         st.info("No investments added yet. Add your first investment above to get started!")
