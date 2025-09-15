@@ -12,6 +12,7 @@ import yfinance as yf
 import requests
 from datetime import datetime, timedelta
 from data.constants import POPULAR_STOCKS, POPULAR_CRYPTO
+from utils.price_fetcher import get_crypto_chart_data, get_stock_chart_data
 
 def create_interactive_portfolio_pie_chart(investments: List[Dict]) -> go.Figure:
     """Create an interactive plotly pie chart for portfolio distribution"""
@@ -182,38 +183,35 @@ def create_portfolio_time_series_chart(investments: List[Dict], time_period: str
     for i, investment in enumerate(investments):
         try:
             if investment['type'].lower() == 'cryptocurrency':
-                # Get crypto data using centralized mapping
+                # Get crypto data using centralized Binance API
                 crypto_id = POPULAR_CRYPTO.get(investment['name'], 'bitcoin')
-                url = f"https://api.coingecko.com/api/v3/coins/{crypto_id}/market_chart?vs_currency=usd&days={days}"
+                prices_df = get_crypto_chart_data(crypto_id, days)
                 
-                response = requests.get(url, timeout=10)
-                if response.status_code == 200:
-                    data = response.json()
-                    if 'prices' in data and data['prices']:
-                        prices_df = pd.DataFrame(data["prices"], columns=["Time", "Price"])
-                        prices_df["Time"] = pd.to_datetime(prices_df["Time"], unit="ms")
-                        
-                        # Calculate different chart types
-                        if chart_type == "percentage":
-                            # Calculate percentage change from first value
-                            first_price = prices_df["Price"].iloc[0]
-                            prices_df["Performance"] = ((prices_df["Price"] - first_price) / first_price) * 100
-                            y_values = prices_df["Performance"]
-                            y_format = '.2f'
-                            y_suffix = '%'
-                        elif chart_type == "normalized":
-                            # Normalize to start at 100
-                            first_price = prices_df["Price"].iloc[0]
-                            prices_df["Performance"] = (prices_df["Price"] / first_price) * 100
-                            y_values = prices_df["Performance"]
-                            y_format = '.2f'
-                            y_suffix = ''
-                        else:  # absolute
-                            # Calculate portfolio value for this investment
-                            prices_df["Performance"] = prices_df["Price"] * investment['shares']
-                            y_values = prices_df["Performance"]
-                            y_format = ',.2f'
-                            y_suffix = ''
+                if prices_df is not None and not prices_df.empty:
+                    # Rename columns to match expected format
+                    prices_df = prices_df.rename(columns={'Price': 'Price', 'Time': 'Time'})
+                    
+                    # Calculate different chart types
+                    if chart_type == "percentage":
+                        # Calculate percentage change from first value
+                        first_price = prices_df["Price"].iloc[0]
+                        prices_df["Performance"] = ((prices_df["Price"] - first_price) / first_price) * 100
+                        y_values = prices_df["Performance"]
+                        y_format = '.2f'
+                        y_suffix = '%'
+                    elif chart_type == "normalized":
+                        # Normalize to start at 100
+                        first_price = prices_df["Price"].iloc[0]
+                        prices_df["Performance"] = (prices_df["Price"] / first_price) * 100
+                        y_values = prices_df["Performance"]
+                        y_format = '.2f'
+                        y_suffix = ''
+                    else:  # absolute
+                        # Calculate portfolio value for this investment
+                        prices_df["Performance"] = prices_df["Price"] * investment['shares']
+                        y_values = prices_df["Performance"]
+                        y_format = ',.2f'
+                        y_suffix = ''
                         
                         fig.add_trace(go.Scatter(
                             x=prices_df["Time"],
@@ -228,51 +226,35 @@ def create_portfolio_time_series_chart(investments: List[Dict], time_period: str
                         ))
             
             else:
-                # Get stock data using centralized mapping
+                # Get stock data using centralized function
                 ticker_symbol = POPULAR_STOCKS.get(investment['name'], 'AAPL')
-                ticker = yf.Ticker(ticker_symbol)
+                stock_df = get_stock_chart_data(ticker_symbol, days)
                 
-                # Get historical data based on period
-                if time_period == "1D":
-                    hist = ticker.history(period="1d", interval="2m")
-                elif time_period == "7D":
-                    hist = ticker.history(period="7d", interval="30m")
-                elif time_period == "1M":
-                    hist = ticker.history(period="1mo", interval="90m")
-                elif time_period == "3M":
-                    hist = ticker.history(period="3mo", interval="1d")
-                elif time_period == "6M":
-                    hist = ticker.history(period="6mo", interval="1d")
-                elif time_period == "1Y":
-                    hist = ticker.history(period="1y", interval="1d")
-                else:  # ALL
-                    hist = ticker.history(period="2y", interval="1d")
-                
-                if not hist.empty:
+                if stock_df is not None and not stock_df.empty:
                     # Calculate different chart types
                     if chart_type == "percentage":
                         # Calculate percentage change from first value
-                        first_price = hist["Close"].iloc[0]
-                        hist["Performance"] = ((hist["Close"] - first_price) / first_price) * 100
-                        y_values = hist["Performance"]
+                        first_price = stock_df["Price"].iloc[0]
+                        stock_df["Performance"] = ((stock_df["Price"] - first_price) / first_price) * 100
+                        y_values = stock_df["Performance"]
                         y_format = '.2f'
                         y_suffix = '%'
                     elif chart_type == "normalized":
                         # Normalize to start at 100
-                        first_price = hist["Close"].iloc[0]
-                        hist["Performance"] = (hist["Close"] / first_price) * 100
-                        y_values = hist["Performance"]
+                        first_price = stock_df["Price"].iloc[0]
+                        stock_df["Performance"] = (stock_df["Price"] / first_price) * 100
+                        y_values = stock_df["Performance"]
                         y_format = '.2f'
                         y_suffix = ''
                     else:  # absolute
                         # Calculate portfolio value
-                        hist["Performance"] = hist["Close"] * investment['shares']
-                        y_values = hist["Performance"]
+                        stock_df["Performance"] = stock_df["Price"] * investment['shares']
+                        y_values = stock_df["Performance"]
                         y_format = ',.2f'
                         y_suffix = ''
                     
                     fig.add_trace(go.Scatter(
-                        x=hist.index,
+                        x=stock_df["Time"],
                         y=y_values,
                         mode='lines',
                         name=investment['name'],

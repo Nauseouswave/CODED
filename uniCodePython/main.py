@@ -1,6 +1,6 @@
 """
-Main Portfolio App
-A streamlined Streamlit application for investment portfolio tracking
+FinSight - AI-Powered Portfolio Tracker
+A streamlined Streamlit application for investment portfolio tracking with intelligent insights
 """
 
 import streamlit as st
@@ -16,7 +16,7 @@ from components.ui_components import (
 
 # Page configuration
 st.set_page_config(
-    page_title="Fintech Portfolio App",
+    page_title="FinSight - AI Portfolio Tracker",
     page_icon="💰",
     layout="wide"
 )
@@ -26,10 +26,10 @@ col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
     st.image("logo.png", width=300)
 
-st.title("Fintech Portfolio App")
-st.header("Investment Portfolio Tracker")
-st.subheader("Monitor your investments and portfolio spread.")
-st.write("Welcome to the Fintech Portfolio App! Here you can track and visualize your investments effortlessly.")
+st.title("FinSight")
+st.header("AI-Powered Investment Portfolio Tracker")
+st.subheader("Monitor your investments and portfolio spread with intelligent insights.")
+st.write("Welcome to FinSight! Here you can track and visualize your investments effortlessly with AI-powered analytics.")
 
 # Initialize session state for storing investments
 if 'investments' not in st.session_state:

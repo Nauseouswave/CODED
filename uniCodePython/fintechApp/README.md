@@ -1,13 +1,13 @@
-# Fintech Portfolio App
+# FinSight - AI-Powered Portfolio Tracker
 
-A comprehensive portfolio tracking application built with Streamlit that allows users to monitor their investment performance in real-time.
+A comprehensive AI-powered portfolio tracking application built with Streamlit that allows users to monitor their investment performance in real-time with intelligent insights.
 
 ## Features
 
 ✨ **Investment Tracking**
 - Add stocks, bonds, real estate, and cryptocurrency investments
 - Input total amount invested and entry price (automatically calculates shares)
-- Live price fetching for stocks (Yahoo Finance) and crypto (CoinGecko API)
+- Live price fetching for stocks (Yahoo Finance) and crypto (Binance API)
 - Real-time profit/loss calculations
 
 📊 **Portfolio Analytics**

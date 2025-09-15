@@ -11,13 +11,12 @@ from datetime import datetime, timedelta
 import yfinance as yf
 from data.constants import POPULAR_STOCKS, POPULAR_CRYPTO
 
-# Global rate limiting (Conservative approach with delays)
+# Global rate limiting (Binance allows 1200 requests/minute!)
 _last_api_call = 0
-_api_call_interval = 0.5  # 0.5 seconds = safer rate limiting with breaks
+_api_call_interval = 0.05  # 0.05 seconds = 1200 requests/minute max
 
-# Symbol mapping for Binance API (comprehensive mapping)
+# Symbol mapping for Binance API
 CRYPTO_SYMBOLS = {
-    # Full names
     'bitcoin': 'BTCUSDT',
     'ethereum': 'ETHUSDT', 
     'solana': 'SOLUSDT',
@@ -36,64 +35,12 @@ CRYPTO_SYMBOLS = {
     'cosmos': 'ATOMUSDT',
     'algorand': 'ALGOUSDT',
     'tezos': 'XTZUSDT',
-    'monero': 'XMRUSDT',
-    'binancecoin': 'BNBUSDT',
-    
-    # Short symbols (common usage)
-    'BTC': 'BTCUSDT',
-    'ETH': 'ETHUSDT',
-    'SOL': 'SOLUSDT',
-    'ADA': 'ADAUSDT',
-    'DOT': 'DOTUSDT',
-    'LINK': 'LINKUSDT',
-    'LTC': 'LTCUSDT',
-    'BCH': 'BCHUSDT',
-    'XLM': 'XLMUSDT',
-    'DOGE': 'DOGEUSDT',
-    'USDC': 'USDCUSDT',
-    'USDT': 'USDTUSDT',
-    'XRP': 'XRPUSDT',
-    'MATIC': 'MATICUSDT',
-    'AVAX': 'AVAXUSDT',
-    'ATOM': 'ATOMUSDT',
-    'ALGO': 'ALGOUSDT',
-    'XTZ': 'XTZUSDT',
-    'XMR': 'XMRUSDT',
-    'BNB': 'BNBUSDT'
+    'monero': 'XMRUSDT'
 }
 
 def get_binance_symbol(crypto_id):
-    """Convert crypto ID to Binance symbol with smart parsing"""
-    import re
-    
-    # Extract symbol from parentheses if present (e.g., "Bitcoin (BTC)" -> "BTC")
-    match = re.search(r'\(([^)]+)\)', crypto_id)
-    if match:
-        symbol_in_parens = match.group(1)
-        # Check if it's a crypto symbol first
-        if symbol_in_parens.upper() in CRYPTO_SYMBOLS:
-            return CRYPTO_SYMBOLS[symbol_in_parens.upper()]
-        elif symbol_in_parens.lower() in CRYPTO_SYMBOLS:
-            return CRYPTO_SYMBOLS[symbol_in_parens.lower()]
-    
-    # Try the full name or symbol directly
-    crypto_id_clean = crypto_id.strip()
-    
-    # Try uppercase first
-    if crypto_id_clean.upper() in CRYPTO_SYMBOLS:
-        return CRYPTO_SYMBOLS[crypto_id_clean.upper()]
-    
-    # Try lowercase
-    if crypto_id_clean.lower() in CRYPTO_SYMBOLS:
-        return CRYPTO_SYMBOLS[crypto_id_clean.lower()]
-    
-    # Try just the first word (e.g., "Bitcoin" from "Bitcoin (BTC)")
-    first_word = crypto_id_clean.split()[0].lower()
-    if first_word in CRYPTO_SYMBOLS:
-        return CRYPTO_SYMBOLS[first_word]
-    
-    # Fallback - try to construct from uppercase
-    return f"{crypto_id_clean.upper().replace(' ', '').replace('(', '').replace(')', '')}USDT"
+    """Convert crypto ID to Binance symbol"""
+    return CRYPTO_SYMBOLS.get(crypto_id, f"{crypto_id.upper()}USDT")
 
 
 @st.cache_data(ttl=60)  # Cache for 1 minute only
@@ -101,25 +48,22 @@ def get_crypto_price_simple(crypto_id):
     """Get crypto price using Binance API (NO RATE LIMITS!)"""
     global _last_api_call
     
-    symbol = get_binance_symbol(crypto_id)
-    print(f"🚀 BINANCE: Fetching '{crypto_id}' -> {symbol}")
+    print(f"🚀 BINANCE: Fetching {crypto_id}")
     
-    # Conservative rate limiting with breaks
+    # Minimal rate limiting for Binance
     current_time = time.time()
     time_since_last = current_time - _last_api_call
     
     if time_since_last < _api_call_interval:
         sleep_time = _api_call_interval - time_since_last
-        print(f"⏱️ RATE LIMIT: Waiting {sleep_time:.1f}s between calls")
         time.sleep(sleep_time)
+    
+    symbol = get_binance_symbol(crypto_id)
     
     try:
         url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}"
-        print(f"📡 BINANCE: Requesting {url}")
         response = requests.get(url, timeout=10)
         _last_api_call = time.time()
-        
-        print(f"📊 RESPONSE: Status {response.status_code}")
         
         if response.status_code == 200:
             data = response.json()
@@ -127,18 +71,12 @@ def get_crypto_price_simple(crypto_id):
                 price = float(data['lastPrice'])
                 print(f"✅ BINANCE: {crypto_id} = ${price:,.2f}")
                 return price
-            else:
-                print(f"❌ BINANCE: No 'lastPrice' in response for {crypto_id}")
-                return None
-        elif response.status_code == 400:
-            print(f"❌ BINANCE: Invalid symbol '{symbol}' for {crypto_id}")
-            return None
-        else:
-            print(f"❌ BINANCE: HTTP {response.status_code} for {crypto_id}")
-            return None
+                
+        print(f"❌ BINANCE: Failed to get {crypto_id}")
+        return None
             
     except Exception as e:
-        print(f"❌ BINANCE ERROR for {crypto_id}: {str(e)}")
+        print(f"❌ BINANCE ERROR: {str(e)}")
         return None
 
 
@@ -198,16 +136,7 @@ def get_crypto_chart_data(crypto_id, days=7):
 
 @st.cache_data(ttl=300)
 def get_stock_price(symbol):
-    """Get stock price using Yahoo Finance with smart symbol parsing"""
-    import re
-    
-    # Extract symbol from parentheses if present (e.g., "Apple Inc. (AAPL)" -> "AAPL")
-    match = re.search(r'\(([^)]+)\)', symbol)
-    if match:
-        extracted_symbol = match.group(1)
-        print(f"📈 YAHOO: Extracted '{extracted_symbol}' from '{symbol}'")
-        symbol = extracted_symbol
-    
+    """Get stock price using Yahoo Finance"""
     try:
         print(f"📈 YAHOO: Fetching {symbol}")
         ticker = yf.Ticker(symbol)
@@ -227,16 +156,7 @@ def get_stock_price(symbol):
 
 @st.cache_data(ttl=300)
 def get_stock_chart_data(symbol, days=30):
-    """Get stock chart data using Yahoo Finance with smart symbol parsing"""
-    import re
-    
-    # Extract symbol from parentheses if present (e.g., "Apple Inc. (AAPL)" -> "AAPL")
-    match = re.search(r'\(([^)]+)\)', symbol)
-    if match:
-        extracted_symbol = match.group(1)
-        print(f"📊 YAHOO CHART: Extracted '{extracted_symbol}' from '{symbol}'")
-        symbol = extracted_symbol
-    
+    """Get stock chart data using Yahoo Finance"""
     try:
         print(f"📊 YAHOO CHART: Fetching {days} days for {symbol}")
         ticker = yf.Ticker(symbol)
@@ -272,30 +192,22 @@ def get_stock_chart_data(symbol, days=30):
 
 
 def get_price(symbol, asset_type):
-    """Universal price getter - handles various asset type formats"""
-    # Normalize asset type to lowercase and handle variations
-    asset_type_lower = asset_type.lower()
-    
-    if asset_type_lower in ['crypto', 'cryptocurrency', 'cryptocurrencies']:
+    """Universal price getter"""
+    if asset_type == 'crypto':
         return get_crypto_price_simple(symbol)
-    elif asset_type_lower in ['stock', 'stocks', 'equity']:
+    elif asset_type == 'stock':
         return get_stock_price(symbol)
     else:
-        print(f"❌ UNKNOWN ASSET TYPE: '{asset_type}' for symbol '{symbol}'")
         return None
 
 
 def get_chart_data(symbol, asset_type, days=30):
-    """Universal chart data getter - handles various asset type formats"""
-    # Normalize asset type to lowercase and handle variations
-    asset_type_lower = asset_type.lower()
-    
-    if asset_type_lower in ['crypto', 'cryptocurrency', 'cryptocurrencies']:
+    """Universal chart data getter"""
+    if asset_type == 'crypto':
         return get_crypto_chart_data(symbol, days)
-    elif asset_type_lower in ['stock', 'stocks', 'equity']:
+    elif asset_type == 'stock':
         return get_stock_chart_data(symbol, days)
     else:
-        print(f"❌ UNKNOWN ASSET TYPE: '{asset_type}' for symbol '{symbol}'")
         return None
 
 

@@ -10,6 +10,7 @@ import plotly.graph_objects as go
 from datetime import datetime
 from typing import List, Dict
 from data.constants import POPULAR_STOCKS, POPULAR_CRYPTO
+from utils.price_fetcher import get_crypto_chart_data, get_stock_chart_data
 
 def render_simple_individual_performance(investments: List[Dict]):
     """Render individual investment performance with simple chart and time selectors"""
@@ -56,82 +57,73 @@ def render_simple_individual_performance(investments: List[Dict]):
         try:
             # Get chart data based on investment type
             if investment['type'].lower() == 'cryptocurrency':
-                # Use centralized crypto mapping
+                # Use centralized crypto mapping and rate-limited fetcher
                 crypto_id = POPULAR_CRYPTO.get(investment['name'], 'bitcoin')
                 
-                # Use CoinGecko API directly like myFintechApp.py
-                url = f"https://api.coingecko.com/api/v3/coins/{crypto_id}/market_chart?vs_currency=usd&days={days}"
+                # Use centralized rate-limited function
+                prices_df = get_crypto_chart_data(crypto_id, days)
                 
-                response = requests.get(url, timeout=10)
-                if response.status_code == 200:
-                    data = response.json()
-                    if 'prices' in data and data['prices']:
-                        # Create chart exactly like myFintechApp.py
-                        prices_df = pd.DataFrame(data["prices"], columns=["Time", "Price"])
-                        prices_df["Time"] = pd.to_datetime(prices_df["Time"], unit="ms")
-                        
-                        # Display current price
-                        current_price = data["prices"][-1][1]
-                        st.metric(
-                            label=f"Current {investment['name']} Price",
-                            value=f"${current_price:,.2f} USD"
-                        )
-                        
-                        # Display chart with proper scaling
-                        st.subheader(f"📈 Price Chart - Last {time_period}")
-                        
-                        # Create a proper scaled chart
-                        chart_df = prices_df.set_index("Time")["Price"]
-                        
-                        # Calculate price range for better scaling
-                        min_price = chart_df.min()
-                        max_price = chart_df.max()
-                        price_range = max_price - min_price
-                        
-                        # Add some padding (5% on each side)
-                        padding = price_range * 0.05
-                        y_min = max(0, min_price - padding)  # Don't go below 0
-                        y_max = max_price + padding
-                        
-                        # Use plotly for better control over scaling
-                        import plotly.graph_objects as go
-                        
-                        fig = go.Figure()
-                        fig.add_trace(go.Scatter(
-                            x=chart_df.index,
-                            y=chart_df.values,
-                            mode='lines',
-                            name='Price',
-                            line=dict(color='#1f77b4', width=2),
-                            hovertemplate='<b>%{x}</b><br>Price: $%{y:.2f}<extra></extra>'
-                        ))
-                        
-                        fig.update_layout(
-                            title=f"{investment['name']} - {time_period}",
-                            xaxis_title="Time",
-                            yaxis_title="Price (USD)",
-                            yaxis=dict(range=[y_min, y_max], tickformat='.2f'),
-                            xaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)'),
-                            yaxis_showgrid=True,
-                            showlegend=False,
-                            height=400,
-                            hovermode='x unified'
-                        )
-                        
-                        st.plotly_chart(fig, use_container_width=True)
-                        
-                        # Show basic investment info
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.metric("💰 Your Investment", f"${investment['amount']:,.2f}")
-                        with col2:
-                            st.metric("📊 Shares/Units", f"{investment['shares']:,.4f}")
-                        with col3:
-                            st.metric("💵 Entry Price", f"${investment['entry_price']:,.2f}")
-                    else:
-                        st.error("No price data available")
+                if prices_df is not None and not prices_df.empty:
+                    # Display current price
+                    current_price = prices_df['Price'].iloc[-1]
+                    st.metric(
+                        label=f"Current {investment['name']} Price",
+                        value=f"${current_price:,.2f} USD"
+                    )
+                    
+                    # Display chart with proper scaling
+                    st.subheader(f"📈 Price Chart - Last {time_period}")
+                    
+                    # Create a proper scaled chart
+                    chart_df = prices_df.set_index("Time")["Price"]
+                    
+                    # Calculate price range for better scaling
+                    min_price = chart_df.min()
+                    max_price = chart_df.max()
+                    price_range = max_price - min_price
+                    
+                    # Add some padding (5% on each side)
+                    padding = price_range * 0.05
+                    y_min = max(0, min_price - padding)  # Don't go below 0
+                    y_max = max_price + padding
+                    
+                    # Use plotly for better control over scaling
+                    import plotly.graph_objects as go
+                    
+                    fig = go.Figure()
+                    fig.add_trace(go.Scatter(
+                        x=chart_df.index,
+                        y=chart_df.values,
+                        mode='lines',
+                        name='Price',
+                        line=dict(color='#1f77b4', width=2),
+                        hovertemplate='<b>%{x}</b><br>Price: $%{y:.2f}<extra></extra>'
+                    ))
+                    
+                    fig.update_layout(
+                        title=f"{investment['name']} - {time_period}",
+                        xaxis_title="Time",
+                        yaxis_title="Price (USD)",
+                        yaxis=dict(range=[y_min, y_max], tickformat='.2f'),
+                        xaxis=dict(showgrid=True, gridwidth=1, gridcolor='rgba(128,128,128,0.2)'),
+                        yaxis_showgrid=True,
+                        showlegend=False,
+                        height=400,
+                        hovermode='x unified'
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Show basic investment info
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("💰 Your Investment", f"${investment['amount']:,.2f}")
+                    with col2:
+                        st.metric("📊 Shares/Units", f"{investment['shares']:,.4f}")
+                    with col3:
+                        st.metric("💵 Entry Price", f"${investment['entry_price']:,.2f}")
                 else:
-                    st.error(f"Failed to fetch data: HTTP {response.status_code}")
+                    st.error("❌ Unable to fetch crypto price data - API rate limited")
                     
             else:
                 # Stock data using centralized mapping

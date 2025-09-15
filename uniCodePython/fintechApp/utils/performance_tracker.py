@@ -9,40 +9,66 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple
 import streamlit as st
 import time
+from .price_fetcher import get_crypto_chart_data, get_stock_chart_data
+from data.constants import POPULAR_STOCKS, POPULAR_CRYPTO
 
 class PerformanceTracker:
     def __init__(self):
-        self.coingecko_base_url = "https://api.coingecko.com/api/v3"
-        self.session = requests.Session()
-        # Rate limiting to respect API limits
-        self.last_request_time = 0
-        self.min_request_interval = 1.1  # 1.1 seconds between requests
-    
-    def _rate_limit(self):
-        """Ensure we don't exceed API rate limits"""
-        current_time = time.time()
-        time_since_last = current_time - self.last_request_time
-        if time_since_last < self.min_request_interval:
-            time.sleep(self.min_request_interval - time_since_last)
-        self.last_request_time = time.time()
+        # Note: Now using centralized Binance API for better rate limits
+        pass
     
     def _extract_symbol_from_name(self, name: str, investment_type: str) -> str:
         """Extract trading symbol from investment name"""
         if investment_type.lower() == 'cryptocurrency':
-            # Handle crypto names
+            # Comprehensive crypto mapping (same as price_fetcher.py)
             crypto_mapping = {
+                # Full names
                 'bitcoin': 'bitcoin',
                 'ethereum': 'ethereum', 
-                'litecoin': 'litecoin',
-                'dogecoin': 'dogecoin',
-                'cardano': 'cardano',
                 'solana': 'solana',
+                'cardano': 'cardano',
+                'polkadot': 'polkadot',
                 'chainlink': 'chainlink',
-                'polkadot': 'polkadot'
+                'litecoin': 'litecoin',
+                'bitcoin-cash': 'bitcoin-cash',
+                'stellar': 'stellar',
+                'dogecoin': 'dogecoin',
+                'usd-coin': 'usd-coin',
+                'tether': 'tether',
+                'ripple': 'ripple',
+                'matic-network': 'matic-network',
+                'avalanche-2': 'avalanche-2',
+                'cosmos': 'cosmos',
+                'algorand': 'algorand',
+                'tezos': 'tezos',
+                'monero': 'monero',
+                'binancecoin': 'binancecoin',
+                
+                # Short symbols (common usage)
+                'btc': 'bitcoin',
+                'eth': 'ethereum',
+                'sol': 'solana',
+                'ada': 'cardano',
+                'dot': 'polkadot',
+                'link': 'chainlink',
+                'ltc': 'litecoin',
+                'bch': 'bitcoin-cash',
+                'xlm': 'stellar',
+                'doge': 'dogecoin',
+                'usdc': 'usd-coin',
+                'usdt': 'tether',
+                'xrp': 'ripple',
+                'matic': 'matic-network',
+                'avax': 'avalanche-2',
+                'atom': 'cosmos',
+                'algo': 'algorand',
+                'xtz': 'tezos',
+                'xmr': 'monero',
+                'bnb': 'binancecoin'
             }
             
             # Try exact match first
-            name_lower = name.lower()
+            name_lower = name.lower().strip()
             if name_lower in crypto_mapping:
                 return crypto_mapping[name_lower]
             
@@ -85,43 +111,33 @@ class PerformanceTracker:
 
     def get_crypto_historical_data(self, crypto_name: str, start_date: str, end_date: str = None) -> Optional[pd.DataFrame]:
         """
-        Get historical price data for cryptocurrency - using exact pattern from myFintechApp.py
+        Get historical price data for cryptocurrency using CoinCap API (better rate limits)
         """
         try:
-            self._rate_limit()
-            
             # Extract proper crypto symbol
             crypto_id = self._extract_symbol_from_name(crypto_name, 'cryptocurrency')
             print(f"DEBUG: Crypto name '{crypto_name}' mapped to '{crypto_id}'")
             
-            # Calculate days using simple approach like myFintechApp.py
+            # Calculate days
             start_dt = pd.to_datetime(start_date)
             end_dt = pd.to_datetime(end_date) if end_date else pd.to_datetime(datetime.now())
             
-            # Use pandas-compatible timedelta calculation
             time_diff = end_dt - start_dt
-            days_diff = time_diff.total_seconds() / (24 * 3600)  # Convert to days
+            days_diff = time_diff.total_seconds() / (24 * 3600)
             days_diff = int(days_diff)
             if days_diff < 1:
                 days_diff = 1
             
-            # Use exact same pattern as myFintechApp.py
-            url = f"https://api.coingecko.com/api/v3/coins/{crypto_id}/market_chart?vs_currency=usd&days={days_diff}"
+            # Use centralized CoinCap API function
+            prices_df = get_crypto_chart_data(crypto_id, days_diff)
             
-            response = self.session.get(url, timeout=10)
-            
-            if response.status_code == 200:
-                data = response.json()
-                
-                # Use exact same DataFrame creation as myFintechApp.py
-                if 'prices' in data:
-                    prices_df = pd.DataFrame(data["prices"], columns=["Time", "price"])
-                    prices_df["Time"] = pd.to_datetime(prices_df["Time"], unit="ms")
-                    prices_df = prices_df.set_index("Time")
-                    
-                    return prices_df
+            if prices_df is not None and not prices_df.empty:
+                # Rename column to match expected format
+                prices_df = prices_df.rename(columns={'Price': 'price'})
+                prices_df = prices_df.set_index("Time")
+                return prices_df
             else:
-                st.warning(f"Unable to fetch data for {crypto_name}: HTTP {response.status_code}")
+                st.warning(f"Unable to fetch data for {crypto_name}: Data unavailable")
                 return None
                 
         except Exception as e:
