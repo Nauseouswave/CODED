@@ -379,7 +379,7 @@ class FinancialAdvisorAgent:
             ]
             
             response = openai.chat.completions.create(
-                model="gpt-4-turbo-preview",
+                model="gpt-4o-mini",
                 messages=messages,
                 tools=self.get_financial_tools(),
                 tool_choice="auto",
@@ -423,7 +423,7 @@ class FinancialAdvisorAgent:
                 ]
                 
                 final_response = openai.chat.completions.create(
-                    model="gpt-4-turbo-preview",
+                    model="gpt-4o-mini",
                     messages=final_messages,
                     temperature=0.7,
                     max_tokens=1500

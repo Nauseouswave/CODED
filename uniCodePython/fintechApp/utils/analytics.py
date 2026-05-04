@@ -15,14 +15,20 @@ def calculate_portfolio_metrics(investments):
     portfolio_data = []
     
     for inv in investments:
-        # Get current price
-        current_price = get_current_price(inv['name'], inv['type'])
-        
         # Calculate values
         entry_price = inv.get('entry_price', inv['amount'] / inv.get('shares', 1))
         shares = inv.get('shares', 1)
         invested_amount = entry_price * shares
-        
+
+        # Cash should not fetch live price or show P&L
+        if inv.get('type') == "Cash":
+            current_price = 1.0
+            current_value = inv.get('amount', invested_amount)
+            pnl = 0
+            pnl_percentage = 0
+        else:
+            current_price = get_current_price(inv['name'], inv['type'])
+
         if current_price:
             current_value = current_price * shares
             pnl = current_value - invested_amount

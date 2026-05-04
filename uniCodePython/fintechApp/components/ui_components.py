@@ -15,22 +15,33 @@ def render_investment_input():
     col1, col2 = st.columns(2)
 
     with col1:
-        investment_type = st.selectbox("Select Investment Type:", ["Stocks", "Bonds", "Real Estate", "Cryptocurrency"])
+        investment_type = st.selectbox(
+            "Select Investment Type:",
+            ["Stocks", "Cryptocurrency", "Cash", "Bonds", "Real Estate"]
+        )
         
         # Show different options based on investment type
         if investment_type == "Stocks":
-            st.write("**Select from Popular Stocks:**")
-            investment_name = st.selectbox(
-                "Choose a stock:",
-                [""] + list(POPULAR_STOCKS.keys()) + ["Custom Entry"],
-                key="stock_select"
+            st.write("**Choose a stock or enter your own ticker:**")
+
+            stock_input_mode = st.radio(
+                "Stock input method:",
+                ["Popular stock list", "Manual ticker"],
+                horizontal=True,
+                key="stock_input_mode"
             )
-            
-            # If custom entry is selected, show text input
-            if investment_name == "Custom Entry":
-                investment_name = st.text_input("Enter custom stock symbol (e.g., AAPL):")
-            elif investment_name == "":
-                investment_name = ""
+
+            if stock_input_mode == "Popular stock list":
+                investment_name = st.selectbox(
+                    "Choose a stock:",
+                    [""] + list(POPULAR_STOCKS.keys()),
+                    key="stock_select"
+                )
+            else:
+                investment_name = st.text_input(
+                    "Enter any stock ticker:",
+                    placeholder="Example: MSTR, CRWD, AVGO, HIMS, SPUS"
+                ).upper().strip()
                 
         elif investment_type == "Cryptocurrency":
             st.write("**Select from Popular Cryptocurrencies:**")
@@ -38,6 +49,13 @@ def render_investment_input():
                 "Choose a cryptocurrency:",
                 [""] + list(POPULAR_CRYPTO.keys()) + ["Custom Entry"],
                 key="crypto_select"
+            )
+        
+        elif investment_type == "Cash":
+            investment_name = st.text_input(
+                "Cash Label:",
+                value="Cash",
+                placeholder="Example: Cash, USD Cash, Emergency Fund"
             )
             
             # If custom entry is selected, show text input
@@ -56,7 +74,16 @@ def render_investment_input():
             initial_entry_price = st.session_state[f"entry_price_{investment_type}"]
             del st.session_state[f"entry_price_{investment_type}"]
         
-        entry_price = st.number_input("Enter Entry Price per Share/Unit ($):", min_value=0.0, step=0.01, value=initial_entry_price)
+        if investment_type == "Cash":
+            entry_price = 1.0
+            st.info("Cash is counted dollar-for-dollar, so entry price is set to $1.")
+        else:
+            entry_price = st.number_input(
+                "Enter Entry Price per Share/Unit ($):",
+                min_value=0.0,
+                step=0.01,
+                value=initial_entry_price
+            )
         
         # Show live price preview for supported assets
         if investment_name and investment_name not in ["", "Custom Entry"] and investment_type in ["Stocks", "Cryptocurrency"]:
