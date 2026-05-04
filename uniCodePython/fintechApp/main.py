@@ -36,6 +36,35 @@ st.set_page_config(
     layout="wide"
 )
 
+
+# Mobile-friendly styling
+st.markdown("""
+<style>
+    /* Improve spacing and typography on small screens */
+    @media (max-width: 768px) {
+        .block-container {
+            padding-top: 1rem;
+            padding-left: 0.8rem;
+            padding-right: 0.8rem;
+        }
+
+        h1, h2, h3 {
+            line-height: 1.2;
+            word-break: break-word;
+        }
+
+        [data-testid="stMetricValue"] {
+            font-size: 1.25rem;
+        }
+
+        .stButton > button,
+        .stDownloadButton > button {
+            width: 100%;
+        }
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # Initialize session state for storing investments
 if 'investments' not in st.session_state:
     # Try to load from storage first
@@ -99,9 +128,7 @@ elif page == "📈 Performance Tracker":
 else:
     # Original portfolio dashboard
     # Display logo at the top
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.image("logo.png", width=300)
+    st.image("logo.png", width=300)
 
     st.title("FinSight")
     st.header("AI-Powered Investment Portfolio Tracker")
@@ -123,26 +150,23 @@ else:
     # Display investments and calculations
     if st.session_state.investments:
         # Portfolio header with quick export
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            st.subheader("Your Investment Portfolio")
-        with col2:
-            from utils.import_export import export_portfolio_to_csv
-            from datetime import datetime
-            
-            # Quick export button
-            if st.button("💾 Quick Export", help="Export portfolio to CSV"):
-                csv_data = export_portfolio_to_csv(st.session_state.investments)
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"portfolio_export_{timestamp}.csv"
-                
-                st.download_button(
-                    label="📥 Download CSV",
-                    data=csv_data,
-                    file_name=filename,
-                    mime="text/csv",
-                    key="quick_download"
-                )
+        st.subheader("Your Investment Portfolio")
+        from utils.import_export import export_portfolio_to_csv
+        from datetime import datetime
+
+        # Quick export button
+        if st.button("💾 Quick Export", help="Export portfolio to CSV"):
+            csv_data = export_portfolio_to_csv(st.session_state.investments)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"portfolio_export_{timestamp}.csv"
+
+            st.download_button(
+                label="📥 Download CSV",
+                data=csv_data,
+                file_name=filename,
+                mime="text/csv",
+                key="quick_download"
+            )
         
         # Calculate portfolio metrics
         portfolio_metrics = calculate_portfolio_metrics(st.session_state.investments)
