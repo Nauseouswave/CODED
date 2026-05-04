@@ -4,6 +4,8 @@ A streamlined Streamlit application for intelligent investment portfolio trackin
 """
 
 import os
+from pathlib import Path
+
 import streamlit as st
 
 # Load environment variables from .env file FIRST
@@ -28,6 +30,9 @@ from components.import_export_ui import render_import_export_page
 from components.goals_ui import render_goals_dashboard, render_goals_sidebar_widget
 from components.financial_advisor_ui import render_financial_advisor, render_advisor_sidebar_widget
 from components.performance_ui import render_performance_dashboard
+
+APP_DIR = Path(__file__).parent
+LOGO_PATH = APP_DIR / "logo.png"
 
 # Page configuration
 st.set_page_config(
@@ -73,7 +78,8 @@ if 'investments' not in st.session_state:
 
 # Sidebar navigation
 with st.sidebar:
-    st.image("logo.png", width=200)
+    if LOGO_PATH.exists():
+        st.image(str(LOGO_PATH), width=200)
     st.title("Navigation")
     
     # Check if we need to override the page selection
@@ -102,7 +108,8 @@ with st.sidebar:
     if st.session_state.investments:
         st.subheader("📊 Quick Stats")
         total_investments = len(st.session_state.investments)
-        total_value = sum(inv['amount'] for inv in st.session_state.investments)
+        portfolio_metrics = calculate_portfolio_metrics(st.session_state.investments)
+        total_value = portfolio_metrics["total_portfolio_value"]
         st.metric("Investments", total_investments)
         st.metric("Total Value", f"${total_value:,.0f}")
         
@@ -128,7 +135,8 @@ elif page == "📈 Performance Tracker":
 else:
     # Original portfolio dashboard
     # Display logo at the top
-    st.image("logo.png", width=300)
+    if LOGO_PATH.exists():
+        st.image(str(LOGO_PATH), width=300)
 
     st.title("FinSight")
     st.header("AI-Powered Investment Portfolio Tracker")
@@ -201,4 +209,5 @@ else:
     else:
         st.info("No investments added yet. Add your first investment above to get started!")
 
-st.logo("logo.png")
+if LOGO_PATH.exists():
+    st.logo(str(LOGO_PATH))
